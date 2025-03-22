@@ -107,14 +107,42 @@ export class GameServer {
         };
     }
 
-    checkCollisions(playerPosition, obstacles) {
-        // Authoritative collision check
-        const playerBoundingBox = new THREE.Box3().setFromObject(playerPosition);
+    checkCollisions(playerMesh, obstacles) {
+        // Authoritative collision check using pure math
+        const playerSize = 1; // Player size
+        const playerPos = playerMesh.position;
+        const playerMinX = playerPos.x - playerSize/2;
+        const playerMaxX = playerPos.x + playerSize/2;
+        const playerMinZ = playerPos.z - playerSize/2;
+        const playerMaxZ = playerPos.z + playerSize/2;
+
         for (const obstacle of obstacles) {
-            const obstacleBoundingBox = new THREE.Box3().setFromObject(obstacle);
-            if (playerBoundingBox.intersectsBox(obstacleBoundingBox)) {
-                this.state.isGameOver = true;
-                return true;
+            const obstaclePos = obstacle.position;
+            const obstacleSize = obstacle.geometry.parameters.width; // Get size from geometry
+            const obstacleMinX = obstaclePos.x - obstacleSize/2;
+            const obstacleMaxX = obstaclePos.x + obstacleSize/2;
+            const obstacleMinZ = obstaclePos.z - obstacleSize/2;
+            const obstacleMaxZ = obstaclePos.z + obstacleSize/2;
+
+            // Check for intersection between the two boxes
+            // Account for world wrapping by checking all possible positions
+            const possibleXPositions = [
+                obstacleMinX,
+                obstacleMinX + this.state.worldWidth,
+                obstacleMinX - this.state.worldWidth
+            ];
+
+            for (const baseX of possibleXPositions) {
+                const wrappedMinX = baseX;
+                const wrappedMaxX = baseX + obstacleSize;
+
+                if (playerMinX < wrappedMaxX && 
+                    playerMaxX > wrappedMinX && 
+                    playerMinZ < obstacleMaxZ && 
+                    playerMaxZ > obstacleMinZ) {
+                    this.state.isGameOver = true;
+                    return true;
+                }
             }
         }
         return false;
