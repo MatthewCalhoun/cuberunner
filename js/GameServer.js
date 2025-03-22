@@ -8,7 +8,16 @@ export class GameServer {
             speed: 0.3,
             spawnInterval: 45,
             gameStarted: false,
-            worldWidth: 60
+            worldWidth: 60,
+            player: this.getInitialPlayerState()
+        };
+    }
+
+    getInitialPlayerState() {
+        return {
+            position: { x: 0, y: -0.5, z: 5 },
+            rotation: { x: -Math.PI / 2, y: 0, z: 0 },
+            speed: .4
         };
     }
 
@@ -110,7 +119,7 @@ export class GameServer {
     checkCollisions(playerMesh, obstacles) {
         // Authoritative collision check using pure math
         const playerSize = 1; // Player size
-        const playerPos = playerMesh.position;
+        const playerPos = this.state.player.position;
         const playerMinX = playerPos.x - playerSize/2;
         const playerMaxX = playerPos.x + playerSize/2;
         const playerMinZ = playerPos.z - playerSize/2;
@@ -168,5 +177,27 @@ export class GameServer {
             y: position.y,
             z: position.z
         };
+    }
+
+    updatePlayer(input) {
+        if (!this.state.gameStarted || this.state.isGameOver) return;
+
+        const { left, right } = input;
+        const player = this.state.player;
+
+        if (left) {
+            player.position.x -= player.speed;
+            player.rotation.z = Math.min(player.rotation.z + 0.1, 0.3);
+        } else if (right) {
+            player.position.x += player.speed;
+            player.rotation.z = Math.max(player.rotation.z - 0.1, -0.3);
+        } else {
+            player.rotation.z *= 0.9;
+        }
+
+        // Validate and wrap position
+        player.position.x = this.wrapCoordinate(player.position.x);
+        
+        return player;
     }
 } 

@@ -5,10 +5,7 @@ export class GameClient {
     constructor() {
         this.server = new GameServer();
         this.state = {
-            playerSpeed: 0.4,
-            lastObstacleSpawn: 0,
-            lastServerSync: 0,
-            syncInterval: 200
+            lastObstacleSpawn: 0
         };
         this.scene = null;
         this.camera = null;
@@ -103,10 +100,21 @@ export class GameClient {
             shininess: 100
         });
         this.player = new THREE.Mesh(playerGeometry, playerMaterial);
-        this.player.position.set(0, -0.5, 5);
-        this.player.rotation.x = -Math.PI / 2;
+        
+        // Use server's initial player state
+        const initialState = this.server.getInitialPlayerState();
+        this.player.position.set(
+            initialState.position.x,
+            initialState.position.y,
+            initialState.position.z
+        );
+        this.player.rotation.set(
+            initialState.rotation.x,
+            initialState.rotation.y,
+            initialState.rotation.z
+        );
+        
         this.scene.add(this.player);
-
         this.playerBoundingBox = new THREE.Box3().setFromObject(this.player);
     }
 
@@ -225,19 +233,18 @@ export class GameClient {
     }
 
     updatePlayer() {
-        if (this.keys.left) {
-            this.player.position.x -= this.state.playerSpeed;
-            this.player.rotation.z = Math.min(this.player.rotation.z + 0.1, 0.3);
-        } else if (this.keys.right) {
-            this.player.position.x += this.state.playerSpeed;
-            this.player.rotation.z = Math.max(this.player.rotation.z - 0.1, -0.3);
-        } else {
-            this.player.rotation.z *= 0.9;
-        }
-
-        // Validate position with server
-        const validatedPosition = this.server.validatePlayerPosition(this.player.position);
-        this.player.position.set(validatedPosition.x, validatedPosition.y, validatedPosition.z);
+        // Update visual representation from server state
+        const playerState = this.server.state.player;
+        this.player.position.set(
+            playerState.position.x,
+            playerState.position.y,
+            playerState.position.z
+        );
+        this.player.rotation.set(
+            playerState.rotation.x,
+            playerState.rotation.y,
+            playerState.rotation.z
+        );
         
         this.playerBoundingBox.setFromObject(this.player);
         this.camera.position.x = this.player.position.x;
@@ -284,15 +291,29 @@ export class GameClient {
         requestAnimationFrame(() => this.animate());
 
         if (!this.server.state.isGameOver) {
-            // Sync with server
-            const serverState = this.server.syncWithClient(this.state);
-            this.server.state = serverState;
+            // Update server state with current input
+            this.server.updatePlayer(this.keys);
+            
+            // Update visual representation from server state
+            const playerState = this.server.state.player;
+            this.player.position.set(
+                playerState.position.x,
+                playerState.position.y,
+                playerState.position.z
+            );
+            this.player.rotation.set(
+                playerState.rotation.x,
+                playerState.rotation.y,
+                playerState.rotation.z
+            );
+            
+            this.playerBoundingBox.setFromObject(this.player);
+            this.camera.position.x = this.player.position.x;
 
-            this.updatePlayer();
             this.updateObstacles();
             this.updateScore();
             
-            if (this.server.checkCollisions(this.player, this.obstacles)) {
+            if (this.server.checkCollisions(null, this.obstacles)) {
                 this.showGameOver();
                 return;
             }
