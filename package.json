@@ -1,0 +1,12 @@
+{
+  "name": "cube-runner",
+  "version": "1.0.0",
+  "description": "A 3D game where you control a cube and avoid obstacles",
+  "main": "js/game.js",
+  "scripts": {
+    "start": "python3 -m http.server 8000"
+  },
+  "dependencies": {
+    "three": "^0.160.0"
+  }
+} 
