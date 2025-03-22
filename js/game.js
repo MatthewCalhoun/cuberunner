@@ -9,7 +9,11 @@ let gameState = {
     lastObstacleSpawn: 0,
     spawnInterval: 45, // Frames between obstacle group spawns
     gameStarted: false,
-    worldWidth: 60 // Width of the repeating world segment
+    worldWidth: 60, // Width of the repeating world segment
+    baseSpeed: 0.3, // Base speed for calculations
+    maxSpeed: 0.8, // Maximum speed cap
+    speedIncreaseRate: 0.0005, // How much speed increases per frame
+    minSpawnInterval: 25 // Minimum spawn interval
 };
 
 // Scene setup
@@ -109,9 +113,22 @@ function createObstacle(x, z) {
     positions.forEach(xPos => {
         const size = 1.2 + Math.random() * 0.4;
         const obstacleGeometry = new THREE.BoxGeometry(size, size, size);
+        let color, emissive;
+        
+        if (gameState.score >= 400) {
+            color = 0x00ffff; // Light blue
+            emissive = 0x00ffff;
+        } else if (gameState.score >= 200) {
+            color = 0x00ff00; // Green
+            emissive = 0x00ff00;
+        } else {
+            color = 0xff0000; // Red
+            emissive = 0xff0000;
+        }
+
         const obstacleMaterial = new THREE.MeshPhongMaterial({ 
-            color: 0xff0000,
-            emissive: 0xff0000,
+            color: color,
+            emissive: emissive,
             emissiveIntensity: 0.5,
             transparent: true,
             opacity: 0.9,
@@ -127,42 +144,71 @@ function createObstacle(x, z) {
 // Create a group of obstacles in different patterns
 function createObstaclePattern() {
     const z = -80;
-    const pattern = Math.floor(Math.random() * 5);
+    const pattern = Math.floor(Math.random() * 8); // Increased number of patterns
     const halfWidth = gameState.worldWidth / 2;
 
     switch(pattern) {
-        case 0: // Infinite wave pattern
-            for (let i = 0; i < 8; i++) {
-                const baseX = (i * 5) - halfWidth;
-                const waveX = baseX + Math.sin(i * 0.5) * 8;
-                createObstacle(wrapCoordinate(waveX), z - i * 8);
-            }
-            break;
-        case 1: // Scattered blocks
-            for (let i = 0; i < 12; i++) {
+        case 0: // Random scattered blocks with varying sizes
+            for (let i = 0; i < 15; i++) {
                 const x = (Math.random() * gameState.worldWidth) - halfWidth;
-                createObstacle(x, z - i * 6);
+                const size = 1.2 + Math.random() * 0.8; // More varied sizes
+                createObstacle(x, z - i * 5);
             }
             break;
-        case 2: // Diagonal walls
-            for (let i = 0; i < 10; i++) {
-                const x = ((i * 6) % gameState.worldWidth) - halfWidth;
-                createObstacle(x, z - i * 6);
-            }
-            break;
-        case 3: // Zigzag walls
-            for (let i = 0; i < 8; i++) {
-                const x = ((i * 8) % gameState.worldWidth) - halfWidth;
-                createObstacle(x, z - i * 8);
-                createObstacle(x + 10, z - i * 8);
-            }
-            break;
-        case 4: // Spiral pattern
+        case 1: // Chaotic wave pattern
             for (let i = 0; i < 12; i++) {
-                const angle = i * 0.5;
-                const radius = 15 - (i * 0.5);
+                const baseX = (i * 4) - halfWidth;
+                const waveX = baseX + Math.sin(i * 0.8) * 12 + Math.cos(i * 0.5) * 8;
+                createObstacle(wrapCoordinate(waveX), z - i * 6);
+            }
+            break;
+        case 2: // Random walls with gaps
+            for (let i = 0; i < 10; i++) {
+                if (Math.random() > 0.3) { // 70% chance to spawn obstacle
+                    const x = ((i * 8) % gameState.worldWidth) - halfWidth;
+                    createObstacle(x, z - i * 8);
+                }
+            }
+            break;
+        case 3: // Spiral with random variations
+            for (let i = 0; i < 15; i++) {
+                const angle = i * 0.4;
+                const radius = 12 - (i * 0.3) + Math.sin(i * 0.5) * 3;
                 const x = Math.cos(angle) * radius;
-                createObstacle(wrapCoordinate(x), z - i * 5);
+                createObstacle(wrapCoordinate(x), z - i * 4);
+            }
+            break;
+        case 4: // Random clusters
+            for (let i = 0; i < 8; i++) {
+                const clusterX = (Math.random() * gameState.worldWidth) - halfWidth;
+                const clusterSize = 2 + Math.floor(Math.random() * 3);
+                for (let j = 0; j < clusterSize; j++) {
+                    const offsetX = (Math.random() - 0.5) * 8;
+                    createObstacle(wrapCoordinate(clusterX + offsetX), z - i * 10);
+                }
+            }
+            break;
+        case 5: // Zigzag with random spacing
+            for (let i = 0; i < 12; i++) {
+                const x = ((i * 6) % gameState.worldWidth) - halfWidth;
+                const offset = Math.sin(i * 0.7) * 10;
+                createObstacle(wrapCoordinate(x + offset), z - i * 7);
+            }
+            break;
+        case 6: // Random diagonal patterns
+            for (let i = 0; i < 10; i++) {
+                const baseX = (i * 7) - halfWidth;
+                const diagonalX = baseX + Math.sin(i * 0.6) * 15;
+                createObstacle(wrapCoordinate(diagonalX), z - i * 8);
+            }
+            break;
+        case 7: // Mixed pattern
+            for (let i = 0; i < 15; i++) {
+                if (Math.random() > 0.4) { // 60% chance to spawn obstacle
+                    const x = (Math.random() * gameState.worldWidth) - halfWidth;
+                    const zOffset = Math.random() * 5;
+                    createObstacle(x, z - i * 6 - zOffset);
+                }
             }
             break;
     }
@@ -239,9 +285,19 @@ function updateObstacles() {
     if (gameState.lastObstacleSpawn >= gameState.spawnInterval) {
         createObstaclePattern();
         gameState.lastObstacleSpawn = 0;
-        // More gradual difficulty increase
-        gameState.spawnInterval = Math.max(35, gameState.spawnInterval - 0.3);
-        gameState.speed = Math.min(0.45, gameState.speed + 0.0003);
+        
+        // Increase difficulty based on score
+        const scoreMultiplier = Math.min(1 + (gameState.score / 100), 2); // Score multiplier up to 2x
+        gameState.speed = Math.min(
+            gameState.maxSpeed,
+            gameState.baseSpeed + (gameState.score * gameState.speedIncreaseRate * scoreMultiplier)
+        );
+        
+        // Decrease spawn interval based on score
+        gameState.spawnInterval = Math.max(
+            gameState.minSpawnInterval,
+            45 - (gameState.score * 0.1 * scoreMultiplier)
+        );
     }
 
     // Update existing obstacles
@@ -251,7 +307,7 @@ function updateObstacles() {
         obstacle.rotation.x += 0.01;
         obstacle.rotation.y += 0.01;
 
-        if (obstacle.position.z > 15) { // Increased removal distance
+        if (obstacle.position.z > 15) {
             scene.remove(obstacle);
             obstacles.splice(i, 1);
         }
@@ -298,6 +354,25 @@ function updateScore() {
     if (!gameState.isGameOver && gameState.gameStarted) {
         gameState.score += 0.1;
         document.getElementById('scoreValue').textContent = Math.floor(gameState.score);
+        
+        // Change colors based on score
+        if (gameState.score >= 400 && scene.background.getHex() !== 0xff69b4) {
+            scene.background = new THREE.Color(0xff69b4); // Pink background
+            
+            // Update existing obstacles to light blue
+            obstacles.forEach(obstacle => {
+                obstacle.material.color.setHex(0x00ffff);
+                obstacle.material.emissive.setHex(0x00ffff);
+            });
+        } else if (gameState.score >= 200 && scene.background.getHex() !== 0x000000) {
+            scene.background = new THREE.Color(0x000000); // Black background
+            
+            // Update existing obstacles to green
+            obstacles.forEach(obstacle => {
+                obstacle.material.color.setHex(0x00ff00);
+                obstacle.material.emissive.setHex(0x00ff00);
+            });
+        }
     }
 }
 
