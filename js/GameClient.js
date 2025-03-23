@@ -213,10 +213,6 @@ export class GameClient {
             const newObstacles = this.server.createObstaclePattern();
             this.createObstacle(newObstacles);
             this.state.lastObstacleSpawn = 0;
-            
-            const updates = this.server.updateObstacles();
-            this.server.state.spawnInterval = updates.spawnInterval;
-            this.server.state.speed = updates.speed;
         }
 
         for (let i = this.obstacles.length - 1; i >= 0; i--) {

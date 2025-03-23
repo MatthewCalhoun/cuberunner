@@ -103,31 +103,23 @@ export class GameServer {
         return obstacles;
     }
 
-    updateObstacles() {
-        if (!this.state.gameStarted) return;
-
-        // Update obstacle positions and spawn new ones
-        this.state.spawnInterval = Math.max(35, this.state.spawnInterval - 0.3);
-        this.state.speed = Math.min(0.45, this.state.speed + 0.0003);
-
-        return {
-            speed: this.state.speed,
-            spawnInterval: this.state.spawnInterval
-        };
-    }
-
     checkCollisions(playerMesh, obstacles) {
         // Authoritative collision check using pure math
         const playerSize = 1; // Player size
         const playerPos = this.state.player.position;
-        const playerMinX = playerPos.x - playerSize/2;
-        const playerMaxX = playerPos.x + playerSize/2;
-        const playerMinZ = playerPos.z - playerSize/2;
-        const playerMaxZ = playerPos.z + playerSize/2;
+        const halfWidth = this.state.worldWidth / 2;
 
         for (const obstacle of obstacles) {
             const obstaclePos = obstacle.position;
-            const obstacleSize = obstacle.geometry.parameters.width; // Get size from geometry
+            const obstacleSize = obstacle.geometry.parameters.width;
+
+            // Calculate player bounds
+            const playerMinX = playerPos.x - playerSize/2;
+            const playerMaxX = playerPos.x + playerSize/2;
+            const playerMinZ = playerPos.z - playerSize/2;
+            const playerMaxZ = playerPos.z + playerSize/2;
+
+            // Calculate obstacle bounds
             const obstacleMinX = obstaclePos.x - obstacleSize/2;
             const obstacleMaxX = obstaclePos.x + obstacleSize/2;
             const obstacleMinZ = obstaclePos.z - obstacleSize/2;
@@ -145,12 +137,49 @@ export class GameServer {
                 const wrappedMinX = baseX;
                 const wrappedMaxX = baseX + obstacleSize;
 
-                if (playerMinX < wrappedMaxX && 
-                    playerMaxX > wrappedMinX && 
-                    playerMinZ < obstacleMaxZ && 
-                    playerMaxZ > obstacleMinZ) {
-                    this.state.isGameOver = true;
-                    return true;
+                // Check if the player is near the world edges
+                const isPlayerNearLeftEdge = playerMinX < -halfWidth + playerSize;
+                const isPlayerNearRightEdge = playerMaxX > halfWidth - playerSize;
+
+                // If player is near edges, check for collisions with wrapped obstacles
+                if (isPlayerNearLeftEdge || isPlayerNearRightEdge) {
+                    // Check collision with the current position
+                    if (playerMinX < wrappedMaxX && 
+                        playerMaxX > wrappedMinX && 
+                        playerMinZ < obstacleMaxZ && 
+                        playerMaxZ > obstacleMinZ) {
+                        this.state.isGameOver = true;
+                        return true;
+                    }
+
+                    // If player is near left edge, also check collision with right side of world
+                    if (isPlayerNearLeftEdge && 
+                        playerMinX + this.state.worldWidth < wrappedMaxX && 
+                        playerMaxX + this.state.worldWidth > wrappedMinX && 
+                        playerMinZ < obstacleMaxZ && 
+                        playerMaxZ > obstacleMinZ) {
+                        this.state.isGameOver = true;
+                        return true;
+                    }
+
+                    // If player is near right edge, also check collision with left side of world
+                    if (isPlayerNearRightEdge && 
+                        playerMinX - this.state.worldWidth < wrappedMaxX && 
+                        playerMaxX - this.state.worldWidth > wrappedMinX && 
+                        playerMinZ < obstacleMaxZ && 
+                        playerMaxZ > obstacleMinZ) {
+                        this.state.isGameOver = true;
+                        return true;
+                    }
+                } else {
+                    // Normal collision check for when player is not near edges
+                    if (playerMinX < wrappedMaxX && 
+                        playerMaxX > wrappedMinX && 
+                        playerMinZ < obstacleMaxZ && 
+                        playerMaxZ > obstacleMinZ) {
+                        this.state.isGameOver = true;
+                        return true;
+                    }
                 }
             }
         }
