@@ -309,7 +309,7 @@ export class GameClient {
             this.updateObstacles();
             this.updateScore();
             
-            if (this.server.checkCollisions(null, this.obstacles)) {
+            if (this.server.checkCollisions()) {
                 this.showGameOver();
                 return;
             }

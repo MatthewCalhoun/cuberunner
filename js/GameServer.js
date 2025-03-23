@@ -9,6 +9,7 @@ export class GameServer {
             spawnInterval: 45,
             gameStarted: false,
             worldWidth: 60,
+            obstacles: [],
             player: this.getInitialPlayerState()
         };
     }
@@ -100,18 +101,19 @@ export class GameServer {
                 break;
         }
 
+        // Add new obstacles to the state
+        this.state.obstacles.push(...obstacles);
         return obstacles;
     }
 
-    checkCollisions(playerMesh, obstacles) {
+    checkCollisions() {
         // Authoritative collision check using pure math
         const playerSize = 1; // Player size
         const playerPos = this.state.player.position;
         const halfWidth = this.state.worldWidth / 2;
 
-        for (const obstacle of obstacles) {
-            const obstaclePos = obstacle.position;
-            const obstacleSize = obstacle.geometry.parameters.width;
+
+        for (const obstacle of this.state.obstacles) {
 
             // Calculate player bounds
             const playerMinX = playerPos.x - playerSize/2;
@@ -120,10 +122,11 @@ export class GameServer {
             const playerMaxZ = playerPos.z + playerSize/2;
 
             // Calculate obstacle bounds
-            const obstacleMinX = obstaclePos.x - obstacleSize/2;
-            const obstacleMaxX = obstaclePos.x + obstacleSize/2;
-            const obstacleMinZ = obstaclePos.z - obstacleSize/2;
-            const obstacleMaxZ = obstaclePos.z + obstacleSize/2;
+            const obstacleMinX = obstacle.x - obstacle.size/2;
+            const obstacleMaxX = obstacle.x + obstacle.size/2;
+            const obstacleMinZ = obstacle.z - obstacle.size/2;
+            const obstacleMaxZ = obstacle.z + obstacle.size/2;
+
 
             // Check for intersection between the two boxes
             // Account for world wrapping by checking all possible positions
@@ -135,7 +138,7 @@ export class GameServer {
 
             for (const baseX of possibleXPositions) {
                 const wrappedMinX = baseX;
-                const wrappedMaxX = baseX + obstacleSize;
+                const wrappedMaxX = baseX + obstacle.size;
 
                 // Check if the player is near the world edges
                 const isPlayerNearLeftEdge = playerMinX < -halfWidth + playerSize;
@@ -227,6 +230,20 @@ export class GameServer {
         // Validate and wrap position
         player.position.x = this.wrapCoordinate(player.position.x);
         
+        // Move obstacles forward
+        this.state.obstacles.forEach(obstacle => {
+            obstacle.z += this.state.speed;
+        });
+        
         return player;
+    }
+
+    // Add method to clean up old obstacles
+    cleanupObstacles() {
+        const playerZ = this.state.player.position.z;
+        // Remove obstacles that are far behind the player
+        this.state.obstacles = this.state.obstacles.filter(obstacle => 
+            obstacle.z > playerZ - 100
+        );
     }
 } 
